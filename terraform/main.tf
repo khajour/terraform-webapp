@@ -1,9 +1,11 @@
+
 // ------------------------------------------------------
 // Providers
 // ------------------------------------------------------
 provider "aws" {
   region = "eu-west-1"
 }
+
 
 
 // ------------------------------------------------------
@@ -27,13 +29,38 @@ data "terraform_remote_state" "rs-vpc" {
     key = "vpc/terraform.tfstate"
   }
 }
+
 // ------------------------------------------------------
-// EC2 Instances
+// Terraform Remote State on S3
+// ------------------------------------------------------
+
+terraform {
+  backend "s3" {
+    bucket = "khajour-s3"
+    key = "webapp/terraform.tfstate"
+    region = "eu-west-1"
+  }
+}
+
+
+data "terraform_remote_state" "rs-vpc" {
+  backend = "s3"
+  config = {
+    region = "eu-west-1"
+    bucket = "khajour-s3"
+    key = "vpc/terraform.tfstate"
+  }
+}
+
+// ------------------------------------------------------
+// Security group
 // ------------------------------------------------------
 resource "aws_security_group" "allow_all" {
   name        = "allow_all"
   description = "Allow all inbound traffic"
-  vpc_id      = "vpc-745e0113"
+  vpc_id      = "${data.terraform_remote_state.rs-vpc.vpc_id}"
+
+
 
   ingress {
     from_port   = 22
@@ -61,6 +88,7 @@ resource "aws_security_group" "allow_all" {
   }
 }
 
+<<<<<<< HEAD
 data "template_file" "user_data" {
   template = "${file("${path.module}/app_install.tpl")}"
   vars {
@@ -68,10 +96,27 @@ data "template_file" "user_data" {
   }
 }
 
+=======
+
+// ------------------------------------------------------
+// EC2 Instance
+// ------------------------------------------------------
+
+data "template_file" "user_data" {
+  template = "${file("${path.module}/app_install.tpl")}"
+  vars {
+    username = "Abdelaziz"
+  }
+}
+
+>>>>>>> add elb
 resource "aws_instance" "web-app" {
+  count = 2
   ami           = "ami-acd005d5"
   instance_type = "t2.medium"
-  subnet_id     = "subnet-a8763fcf"
+  subnet_id     = "${element(data.terraform_remote_state.rs-vpc.public_subnet_ids, count.index)}"
+
+
   key_name = "terraform-key-pair"
   associate_public_ip_address = "true"
   user_data = "${data.template_file.user_data.rendered}"
@@ -80,5 +125,38 @@ resource "aws_instance" "web-app" {
 
   tags {
     Name = "terraform web-app"
+  }
+}
+
+// ------------------------------------------------------
+// ELB
+// ------------------------------------------------------
+resource "aws_elb" "webapp-elb" {
+  name               = "webapp-elb"
+  subnets            = ["${data.terraform_remote_state.rs-vpc.public_subnet_ids}"]
+  security_groups    = ["${aws_security_group.allow_all.id}"]
+
+
+  listener {
+    instance_port     = 80
+    instance_protocol = "http"
+    lb_port           = 80
+    lb_protocol       = "http"
+  }
+
+  health_check {
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 3
+    target              = "HTTP:80/"
+    interval            = 5
+  }
+
+  instances             = ["${aws_instance.web-app.*.id}"]
+
+
+
+  tags {
+    Name = "terraform-elb"
   }
 }
