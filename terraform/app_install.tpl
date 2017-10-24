@@ -6,7 +6,7 @@ yum install -y git nginx
 rm /etc/nginx/sites-enabled/default
 
 HOST=`hostname`
-git clone https://github.com/kahjour/webapp.git ~/html
+git clone https://github.com/khajour/terraform-webapp.git ~/html
 \cp -r ~/html/* /usr/share/nginx/html/
 sed -i "s#everybody#${username} at $HOST#" /usr/share/nginx/html/index.html
 #systemctl restart nginx
