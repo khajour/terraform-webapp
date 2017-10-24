@@ -5,6 +5,28 @@ provider "aws" {
   region = "eu-west-1"
 }
 
+
+// ------------------------------------------------------
+// Terraform Remote State on S3
+// ------------------------------------------------------
+
+terraform {
+  backend "s3" {
+    bucket = "khajour-s3"
+    key = "webapp/terraform.tfstate"
+    region = "eu-west-1"
+  }
+}
+
+
+data "terraform_remote_state" "rs-vpc" {
+  backend = "s3"
+  config = {
+    region = "eu-west-1"
+    bucket = "khajour-s3"
+    key = "vpc/terraform.tfstate"
+  }
+}
 // ------------------------------------------------------
 // EC2 Instances
 // ------------------------------------------------------
@@ -22,7 +44,7 @@ resource "aws_security_group" "allow_all" {
   ingress {
     from_port   = 80
     to_port     = 80
-    protocol    = "HTTP"
+    protocol    = "TCP"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -39,10 +61,12 @@ resource "aws_security_group" "allow_all" {
   }
 }
 
-resource "template_file" "user_data" {
-  template = "app_install.tpl"
+data "template_file" "user_data" {
+  template = "${file("${path.module}/app_install.tpl")}"
+  vars {
+    username = "Abdelaziz"
+  }
 }
-
 
 resource "aws_instance" "web-app" {
   ami           = "ami-acd005d5"
@@ -50,7 +74,7 @@ resource "aws_instance" "web-app" {
   subnet_id     = "subnet-a8763fcf"
   key_name = "terraform-key-pair"
   associate_public_ip_address = "true"
-  user_data = "${template_file.user_data.rendered}"
+  user_data = "${data.template_file.user_data.rendered}"
   security_groups = ["${aws_security_group.allow_all.id}"]
 
 
