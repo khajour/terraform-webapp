@@ -7,29 +7,6 @@ provider "aws" {
 }
 
 
-
-// ------------------------------------------------------
-// Terraform Remote State on S3
-// ------------------------------------------------------
-
-terraform {
-  backend "s3" {
-    bucket = "khajour-s3"
-    key = "webapp/terraform.tfstate"
-    region = "eu-west-1"
-  }
-}
-
-
-data "terraform_remote_state" "rs-vpc" {
-  backend = "s3"
-  config = {
-    region = "eu-west-1"
-    bucket = "khajour-s3"
-    key = "vpc/terraform.tfstate"
-  }
-}
-
 // ------------------------------------------------------
 // Terraform Remote State on S3
 // ------------------------------------------------------
@@ -88,15 +65,6 @@ resource "aws_security_group" "allow_all" {
   }
 }
 
-<<<<<<< HEAD
-data "template_file" "user_data" {
-  template = "${file("${path.module}/app_install.tpl")}"
-  vars {
-    username = "Abdelaziz"
-  }
-}
-
-=======
 
 // ------------------------------------------------------
 // EC2 Instance
@@ -109,7 +77,6 @@ data "template_file" "user_data" {
   }
 }
 
->>>>>>> add elb
 resource "aws_instance" "web-app" {
   count = 2
   ami           = "ami-acd005d5"
